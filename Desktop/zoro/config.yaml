@@ -1,0 +1,48 @@
+# TikTok Analysis Pipeline Configuration
+# =====================================
+
+# Data Collection Settings
+scraping:
+  default_limit: 100
+  timeout_seconds: 300
+  search_sorting: "Top"
+
+# OCR Processing Settings  
+ocr:
+  timeout_seconds: 15
+  batch_size: 20
+  confidence_threshold: 0.7
+
+# LLM Analysis Settings
+llm:
+  model: "claude-opus-4"
+  max_tokens: 2000
+  temperature: 0.3
+  analysis_sample_size: 20
+
+# Metrics Calculation
+metrics:
+  min_hashtag_usage: 2
+  engagement_weights:
+    likes: 1.0
+    comments: 3.0
+    shares: 5.0
+  
+# Storage Settings
+storage:
+  data_directory: "data"
+  save_raw_data: true
+  auto_export_summary: true
+
+# Analysis Types
+analysis_types:
+  - "trending"
+  - "hashtag" 
+  - "creator"
+  - "topic"
+
+# Time Periods for Analysis
+time_periods:
+  recent: 6    # hours
+  daily: 24    # hours  
+  weekly: 168  # hours 

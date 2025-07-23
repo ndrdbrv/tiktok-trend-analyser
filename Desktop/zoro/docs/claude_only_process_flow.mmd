@@ -1,0 +1,68 @@
+graph TD
+    %% System Entry Points
+    A["🚀 User Request<br/>'Analyze #startup trends'"] --> B["🎼 LangChain Orchestrator<br/>StateGraph Workflow"]
+    
+    %% LangChain Orchestration Layer
+    B --> C["🔄 Workflow Coordination<br/>State Management"]
+    
+    %% Workflow Steps (LangChain Managed)
+    C --> D1["⚙️ initialize<br/>Setup"]
+    D1 --> D2["🔍 discover_trends<br/>Data Discovery"]
+    D2 --> D3["📈 enrich_data<br/>Data Enhancement"]
+    D3 --> D4["📊 compute_metrics<br/>Analytics"]
+    D4 --> D5["🧠 semantic_analysis<br/>Content Analysis"]
+    D5 --> D6["🔮 generate_predictions<br/>Viral Prediction"]
+    D6 --> D7["✅ evaluate_results<br/>Validation"]
+    D7 --> D8["🧹 cleanup<br/>Finalization"]
+    
+    %% Agent Registry (LangChain Agents)
+    B --> E["🤖 AgentRegistry<br/>Agent Manager"]
+    E --> F1["📥 IngestionAgent<br/>@tool decorators"]
+    E --> F2["📊 AnalyzerAgent<br/>LangChain Framework"]
+    
+    %% Data Processing Split
+    D2 --> G{"🛤️ Processing Path"}
+    G -->|"📱 Data"| H["🚀 Direct Apify SDK<br/>Real TikTok Data"]
+    G -->|"🧠 AI"| I["🤖 Claude Opus 4<br/>ONLY AI Model"]
+    
+    %% Apify Data Flow
+    H --> J["📊 Raw TikTok Data<br/>Videos, Profiles, Metrics"]
+    
+    %% Claude-Only AI System
+    I --> K["🤖 Claude Opus 4<br/>claude-opus-4-20250514"]
+    K --> L["🧠 AI Analysis<br/>- Viral predictions<br/>- Content insights<br/>- Trend analysis"]
+    
+    %% LangChain Components Used
+    F1 --> M1["🛠️ @tool monitor_startup_trends"]
+    F1 --> M2["🎬 @tool analyze_startup_video"]
+    F2 --> M3["⚡ AgentExecutor"]
+    F2 --> M4["💾 ConversationMemory"]
+    
+    %% Data Convergence
+    J --> N["🗃️ WorkflowState<br/>Shared State Management"]
+    L --> N
+    N --> D3
+    
+    %% Final Output
+    D8 --> O["📺 Terminal Output<br/>Analysis Results"]
+    D8 --> P["🚫 No Files Created<br/>Memory-Only Processing"]
+    
+    %% Styling
+    classDef langchain fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef apify fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
+    classDef claude fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#000
+    classDef workflow fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,color:#000
+    
+    %% Apply Classes
+    class B,C,E,F1,F2,M1,M2,M3,M4,N langchain
+    class H,J apify
+    class I,K,L claude
+    class D1,D2,D3,D4,D5,D6,D7,D8,O,P workflow
+    
+    %% Legend
+    subgraph Legend["🔍 Simplified Architecture"]
+        LE1["🔵 LangChain Orchestration"]:::langchain
+        LE2["🟠 Apify Data Source"]:::apify  
+        LE3["🟣 Claude Opus 4 ONLY"]:::claude
+        LE4["🟢 Workflow & Output"]:::workflow
+    end 

@@ -1,0 +1,95 @@
+graph TD
+    %% System Entry Points
+    A[run_system.py<br/>🚀 Main Entry] --> B[WorkflowOrchestrator<br/>🎛️ System Controller]
+    
+    %% LangChain Orchestration Layer
+    B --> C{LangGraph StateGraph<br/>🔄 Workflow Engine}
+    C --> D[workflow_graph.ainvoke<br/>📊 State Management]
+    
+    %% Workflow Steps (LangChain Managed)
+    D --> E1[initialize<br/>⚙️ Setup]
+    E1 --> E2[discover_trends<br/>🔍 Data Discovery]
+    E2 --> E3[enrich_data<br/>📈 Data Enhancement]
+    E3 --> E4[compute_metrics<br/>📊 Analytics]
+    E4 --> E5[semantic_analysis<br/>🧠 Content Analysis]
+    E5 --> E6[generate_predictions<br/>🔮 Viral Prediction]
+    E6 --> E7[evaluate_results<br/>✅ Validation]
+    E7 --> E8[cleanup<br/>🧹 Finalization]
+    
+    %% Agent Registry (LangChain Agents)
+    B --> F[AgentRegistry<br/>🤖 Agent Manager]
+    F --> G1[IngestionAgent<br/>📥 Data Ingestion]
+    F --> G2[AnalyzerAgent<br/>📊 Analysis]
+    F --> G3[SemanticAgent<br/>🧠 NLP Processing]
+    
+    %% LangChain Agent Framework
+    G1 --> H1[BaseAgent<br/>🏗️ LangChain Structure]
+    G2 --> H1
+    G3 --> H1
+    
+    H1 --> I1[AgentExecutor<br/>⚡ LangChain Runtime]
+    H1 --> I2[ConversationBufferMemory<br/>💾 Context Management]
+    H1 --> I3[LangChain Tools<br/>🛠️ @tool decorators]
+    
+    %% Data Processing Split
+    E2 --> J{Data Processing<br/>Pathway}
+    J -->|Apify Data| K[Direct Apify SDK<br/>📱 No LangChain]
+    J -->|AI Analysis| L[AI Processing<br/>Decision Point]
+    
+    %% AI System Architecture
+    L --> M{AI System<br/>unified_ai_system.py}
+    M -->|Primary| N1[Cloud Llama 70B<br/>🌩️ Direct API]
+    M -->|Backup| N2[Local Llama 8B<br/>🦙 Direct API]
+    M -->|Fallback| N3[Claude Opus 4<br/>🤖 Direct API]
+    M -->|Emergency| N4[GPT-4o-mini<br/>🔄 Direct API]
+    
+    %% LangChain AI Components (Optional Path)
+    L --> O[setup_llm_integration.py<br/>🔧 LangChain LLMs]
+    O --> P1[ChatOpenAI<br/>🤖 LangChain Wrapper]
+    O --> P2[ChatAnthropic<br/>🤖 LangChain Wrapper]
+    O --> P3[ChatPromptTemplate<br/>📝 Structured Prompts]
+    O --> P4[JsonOutputParser<br/>📋 Output Parsing]
+    
+    %% Tool System
+    I3 --> Q1[monitor_startup_trends<br/>📈 @tool]
+    I3 --> Q2[analyze_startup_video<br/>🎬 @tool]
+    
+    %% Data Flow Back
+    K --> R[Apify Data<br/>📊 Raw TikTok Data]
+    N1 --> S[AI Insights<br/>🧠 Processed Analysis]
+    N2 --> S
+    N3 --> S
+    N4 --> S
+    P1 --> S
+    P2 --> S
+    
+    R --> T[WorkflowState<br/>🗃️ Shared State]
+    S --> T
+    T --> E3
+    
+    %% State Management
+    T --> U[ingested_data<br/>computed_metrics<br/>predictions<br/>alerts]
+    
+    %% Final Output
+    E8 --> V[Terminal Output<br/>📺 Results Display]
+    E8 --> W[No Files Created<br/>🚫 Memory Only]
+    
+    %% Styling
+    classDef langchain fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#000
+    classDef directapi fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#000
+    classDef workflow fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#000
+    classDef data fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px,color:#000
+    
+    %% Apply Classes
+    class C,D,F,H1,I1,I2,I3,O,P1,P2,P3,P4,Q1,Q2 langchain
+    class K,M,N1,N2,N3,N4 directapi
+    class E1,E2,E3,E4,E5,E6,E7,E8,U workflow
+    class R,S,T,V,W data
+    
+    %% Legend
+    subgraph Legend["🔍 Legend"]
+        L1[LangChain Components]:::langchain
+        L2[Direct API Calls]:::directapi
+        L3[Workflow Steps]:::workflow
+        L4[Data & Output]:::data
+    end 
