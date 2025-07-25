@@ -1,198 +1,209 @@
 #!/usr/bin/env python3
 """
-🚀 TIKTOK TRENDING ANALYSIS - MAIN PIPELINE
+🚀 ZORO - ALTERNATIVE PIPELINE ENTRY POINT
 ==========================================
 
-Clean pipeline that connects everything:
-✅ Apify scraping → OCR processing → Claude Opus 4 analysis → Results
+Alternative entry point for the TikTok analysis pipeline.
+Provides flexible workflow control and pipeline management.
 
 Usage:
-    python main.py trending          # Analyze trending videos
-    python main.py hashtag <tag>     # Analyze specific hashtag
-    python main.py --help            # Show help
+    python main.py scrape calebinvest       # Data ingestion only
+    python main.py analyze calebinvest      # Analysis only (from stored data)
+    python main.py full calebinvest         # Complete workflow
+    python main.py status                   # Check database status
 """
 
 import asyncio
 import argparse
-import yaml
+import sys
 import os
 from datetime import datetime
 
-# Load environment
+# Add current directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from load_env import load_env_file
-load_env_file()
+from pipeline.scraper import TikTokScraper
+from pipeline.storage import DatabaseManager
+from pipeline.llm_analyzer import LLMAnalyzer
+from pipeline.metrics import MetricsCalculator
+from pipeline.ocr_processor import OCRProcessor
 
-# Import pipeline components
-from pipeline import (
-    TikTokScraper,
-    OCRProcessor, 
-    LLMAnalyzer,
-    MetricsCalculator,
-    DataStorage
-)
-
-class TikTokAnalysisPipeline:
-    """Main pipeline that orchestrates all components"""
+class ZoroPipeline:
+    """Main pipeline orchestrator"""
     
-    def __init__(self, config_path: str = "config.yaml"):
-        # Load configuration
-        with open(config_path, 'r') as f:
-            self.config = yaml.safe_load(f)
-        
-        # Initialize components
+    def __init__(self):
+        load_env_file()
         self.scraper = TikTokScraper()
-        self.ocr = OCRProcessor()
-        self.llm = LLMAnalyzer()
+        self.db = DatabaseManager()
+        self.llm_analyzer = LLMAnalyzer()
         self.metrics = MetricsCalculator()
-        self.storage = DataStorage(self.config['storage']['data_directory'])
+        self.ocr = OCRProcessor()
         
-        print("✅ Pipeline initialized")
-    
-    async def analyze_trending(self, limit: int = None) -> dict:
-        """Run complete trending analysis pipeline"""
+    async def scrape_only(self, username: str):
+        """Data ingestion only - no analysis"""
         
-        limit = limit or self.config['scraping']['default_limit']
-        
-        print(f"🚀 STARTING TRENDING ANALYSIS PIPELINE")
-        print("=" * 50)
-        print(f"📊 Target videos: {limit}")
-        print()
-        
-        # Step 1: Scrape trending videos
-        print("📱 STEP 1: Scraping trending videos...")
-        videos = self.scraper.scrape_trending(limit)
-        print(f"✅ Scraped {len(videos)} videos")
-        
-        if not videos:
-            print("❌ No videos found")
-            return {}
-        
-        # Step 2: Process OCR
-        print(f"\n📸 STEP 2: Processing thumbnails with OCR...")
-        videos = self.ocr.process_videos_batch(videos)
-        print(f"✅ OCR processing complete")
-        
-        # Step 3: Calculate metrics
-        print(f"\n📊 STEP 3: Calculating metrics...")
-        videos = self.metrics.calculate_engagement_metrics(videos)
-        hashtag_metrics = self.metrics.calculate_hashtag_metrics(videos)
-        trending_metrics = self.metrics.calculate_trending_metrics(videos)
-        print(f"✅ Metrics calculated")
-        
-        # Step 4: LLM Analysis
-        print(f"\n🤖 STEP 4: Claude Opus 4 analysis...")
-        llm_analysis = await self.llm.analyze_trending_topics(videos)
-        hashtag_analysis = await self.llm.analyze_hashtag_momentum(hashtag_metrics)
-        recommendations = await self.llm.generate_content_recommendations({
-            'videos': videos[:10],
-            'hashtags': hashtag_metrics,
-            'metrics': trending_metrics
-        })
-        print(f"✅ LLM analysis complete")
-        
-        # Step 5: Combine results
-        results = {
-            'videos': videos,
-            'hashtag_metrics': hashtag_metrics,
-            'trending_metrics': trending_metrics,
-            'llm_analysis': llm_analysis,
-            'hashtag_analysis': hashtag_analysis,
-            'recommendations': recommendations,
-            'pipeline_info': {
-                'total_videos': len(videos),
-                'analysis_time': datetime.now().isoformat(),
-                'config_used': self.config
-            }
-        }
-        
-        # Step 6: Save results
-        print(f"\n💾 STEP 5: Saving results...")
-        filepath = self.storage.save_analysis(results, "trending")
-        if self.config['storage']['auto_export_summary']:
-            self.storage.export_summary(results)
-        print(f"✅ Results saved")
-        
-        # Step 7: Display summary
-        self._display_results_summary(results)
-        
-        return results
-    
-    async def analyze_hashtag(self, hashtag: str, limit: int = None) -> dict:
-        """Run hashtag-specific analysis"""
-        
-        limit = limit or self.config['scraping']['default_limit']
-        
-        print(f"🏷️ ANALYZING HASHTAG: #{hashtag}")
+        print(f"📥 SCRAPING DATA FOR @{username.upper()}")
         print("=" * 50)
         
-        # Similar pipeline but focused on hashtag
-        videos = self.scraper.scrape_hashtag(hashtag, limit)
-        if not videos:
-            print(f"❌ No videos found for #{hashtag}")
-            return {}
+        # Scrape creator profile
+        print("👤 Scraping creator profile...")
+        creator_data = await self.scraper.scrape_creator_profile(username)
+        self.db.store_creator_data(creator_data)
         
-        videos = self.ocr.process_videos_batch(videos)
-        videos = self.metrics.calculate_engagement_metrics(videos)
-        metrics = self.metrics.calculate_trending_metrics(videos)
+        # Scrape videos
+        print("🎬 Scraping videos...")
+        videos_data = await self.scraper.scrape_creator_videos(username, limit=20)
         
-        llm_analysis = await self.llm.analyze_trending_topics(videos)
+        # Process each video
+        for i, video in enumerate(videos_data, 1):
+            print(f"📹 Processing video {i}/{len(videos_data)}...")
+            
+            # OCR processing
+            if video.get('thumbnail_url'):
+                ocr_text = await self.ocr.extract_text_from_url(video['thumbnail_url'])
+                video['ocr_text'] = ocr_text
+                video['ocr_processed'] = True
+            
+            # Store in database
+            self.db.store_video_data(video)
         
-        results = {
-            'hashtag': hashtag,
-            'videos': videos,
-            'metrics': metrics,
-            'llm_analysis': llm_analysis
+        print(f"✅ Successfully scraped and stored {len(videos_data)} videos")
+        return videos_data
+    
+    async def analyze_only(self, username: str):
+        """Analysis only - use stored data"""
+        
+        print(f"🧠 ANALYZING STORED DATA FOR @{username.upper()}")
+        print("=" * 55)
+        
+        # Load data from database
+        videos_data = self.db.get_creator_videos(username)
+        
+        if not videos_data:
+            print(f"❌ No stored data found for @{username}")
+            print("💡 Run 'python main.py scrape {username}' first")
+            return
+        
+        print(f"📊 Found {len(videos_data)} stored videos")
+        
+        # Calculate metrics
+        print("📈 Calculating engagement metrics...")
+        enhanced_videos = self.metrics.calculate_engagement_metrics(videos_data)
+        
+        # LLM Analysis
+        print("🤖 Running LLM analysis...")
+        trending_analysis = await self.llm_analyzer.analyze_trending_topics(enhanced_videos)
+        growth_analysis = self.metrics.calculate_growth_trends(enhanced_videos)
+        
+        # Generate report
+        report = {
+            "creator": username,
+            "videos_analyzed": len(videos_data),
+            "metrics": growth_analysis,
+            "trending_insights": trending_analysis,
+            "analyzed_at": datetime.now().isoformat()
         }
         
-        self.storage.save_analysis(results, f"hashtag_{hashtag}")
-        self._display_results_summary(results)
+        # Store analysis
+        self.db.store_analysis_result(username, "pipeline_analysis", report)
         
-        return results
+        # Display results
+        self._display_analysis_results(report)
+        return report
     
-    def _display_results_summary(self, results: dict):
-        """Display a summary of results"""
+    async def full_workflow(self, username: str):
+        """Complete workflow - scrape then analyze"""
         
-        print(f"\n🎯 ANALYSIS SUMMARY")
+        print(f"🎯 FULL WORKFLOW FOR @{username.upper()}")
+        print("=" * 50)
+        
+        # Phase 1: Scraping
+        await self.scrape_only(username)
+        
+        print("\n" + "=" * 50)
+        
+        # Phase 2: Analysis
+        await self.analyze_only(username)
+    
+    def check_status(self):
+        """Check database status and statistics"""
+        
+        print("📊 DATABASE STATUS")
         print("=" * 30)
         
-        if 'trending_metrics' in results:
-            metrics = results['trending_metrics']
-            print(f"📊 Videos analyzed: {metrics.get('total_videos', 0)}")
-            print(f"👁️  Total views: {metrics.get('total_views', 0):,}")
-            print(f"💬 Avg engagement: {metrics.get('avg_engagement_rate', 0):.2f}%")
+        # Get database statistics
+        stats = self.db.get_database_stats()
         
-        if 'hashtag_metrics' in results:
-            top_hashtags = list(results['hashtag_metrics'].items())[:5]
-            print(f"\n🏷️ Top 5 Hashtags:")
-            for hashtag, data in top_hashtags:
-                print(f"   #{hashtag}: {data['momentum_score']:.0f} momentum")
+        print(f"👤 Creators analyzed: {stats.get('total_creators', 0)}")
+        print(f"🎬 Videos stored: {stats.get('total_videos', 0)}")
+        print(f"🔍 OCR processed: {stats.get('ocr_processed', 0)}")
+        print(f"📝 Transcripts: {stats.get('transcripts_processed', 0)}")
+        print(f"🧠 LLM analyses: {stats.get('llm_analyses', 0)}")
         
-        if 'llm_analysis' in results and 'cost' in results['llm_analysis']:
-            print(f"\n💰 Claude Opus 4 cost: ${results['llm_analysis']['cost']:.4f}")
+        # Recent activity
+        recent_creators = self.db.get_recent_creators(limit=5)
+        if recent_creators:
+            print("\n📅 RECENT ACTIVITY:")
+            for creator in recent_creators:
+                print(f"   @{creator['username']} - {creator['analyzed_at']}")
+    
+    def _display_analysis_results(self, report):
+        """Display analysis results"""
         
-        print(f"✅ Pipeline complete!")
+        print("\n🎯 ANALYSIS RESULTS")
+        print("=" * 35)
+        
+        metrics = report.get("metrics", {})
+        print(f"📈 Videos analyzed: {report['videos_analyzed']}")
+        print(f"📊 Avg engagement: {metrics.get('avg_engagement_rate', 0):.2f}%")
+        print(f"🚀 Growth rate: {metrics.get('growth_rate', 0):.2f}%")
+        print(f"🎯 Consistency: {metrics.get('consistency_score', 0):.1f}/10")
+        
+        # Trending insights
+        insights = report.get("trending_insights", {})
+        if insights:
+            print("\n💡 KEY INSIGHTS:")
+            for key, value in insights.items():
+                if isinstance(value, (int, float)):
+                    print(f"   {key}: {value:.2f}")
+                else:
+                    print(f"   {key}: {value}")
 
 async def main():
-    """Main function with command line interface"""
+    """Main CLI interface"""
     
-    parser = argparse.ArgumentParser(description="TikTok Trending Analysis Pipeline")
-    parser.add_argument('analysis_type', choices=['trending', 'hashtag'], 
-                       help='Type of analysis to run')
-    parser.add_argument('hashtag', nargs='?', help='Hashtag to analyze (for hashtag analysis)')
-    parser.add_argument('--limit', type=int, default=100, help='Number of videos to analyze')
+    parser = argparse.ArgumentParser(description='Zoro Pipeline Manager')
+    parser.add_argument('action', choices=['scrape', 'analyze', 'full', 'status'], 
+                       help='Pipeline action to perform')
+    parser.add_argument('target', nargs='?', help='Username to process')
     
     args = parser.parse_args()
     
-    pipeline = TikTokAnalysisPipeline()
+    if args.action == 'status':
+        pipeline = ZoroPipeline()
+        pipeline.check_status()
+        return
     
-    if args.analysis_type == 'trending':
-        await pipeline.analyze_trending(args.limit)
+    if not args.target:
+        print("❌ Please provide a username")
+        parser.print_help()
+        return
     
-    elif args.analysis_type == 'hashtag':
-        if not args.hashtag:
-            print("❌ Hashtag required for hashtag analysis")
-            return
-        await pipeline.analyze_hashtag(args.hashtag, args.limit)
+    pipeline = ZoroPipeline()
+    
+    try:
+        if args.action == 'scrape':
+            await pipeline.scrape_only(args.target)
+        elif args.action == 'analyze':
+            await pipeline.analyze_only(args.target)
+        elif args.action == 'full':
+            await pipeline.full_workflow(args.target)
+            
+    except Exception as e:
+        print(f"❌ Pipeline failed: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(main()) 

@@ -1,37 +1,189 @@
-# TikTok Trend Analysis System 🎯
+# 🎯 Zoro - TikTok Analytical Intelligence System
 
-A comprehensive TikTok content analysis system powered by **Apify scrapers**, **LangChain orchestration**, and **Claude Opus 4 AI** - all running clean in your terminal with no file clutter.
+A comprehensive TikTok analysis system with **database-first architecture** and **advanced LLM analytics** powered by **Apify scrapers**, **OCR processing**, and **Claude Opus 4**.
 
-## 🚀 Quick Start (NEW Unified System)
+## 🚀 **Current Pipeline Architecture**
 
-### One Command for Everything
-```bash
-python analyze.py <username>              # Full account analysis
-python analyze.py <username> --quick      # Quick growth analysis  
-python analyze.py <username> --trends     # Hashtag trends analysis
-python analyze.py <username> --viral      # Viral potential analysis
-python analyze.py --hashtag startup       # Hashtag analysis
-python analyze.py --demo                  # Demo with sample data
+```
+PHASE 1: Data Ingestion → PHASE 2: Database Storage → PHASE 3: LLM Analysis
 ```
 
-### Examples
+**Key Benefits:**
+- ✅ **No real-time processing** - everything stored first for reusability
+- ✅ **No temporary files** - all data persisted in SQLite database
+- ✅ **Advanced analytics** - statistical insights, trend detection, predictive modeling
+- ✅ **Transcript analysis** - deep speech pattern analysis with phrase frequency and timing
+
+## 🎯 **Quick Start**
+
+### **Method 1: Unified Analysis (Automatic)**
 ```bash
-python analyze.py calebinvest             # Full analysis of @calebinvest
-python analyze.py neelyweely23 --quick    # Quick growth rate analysis
-python analyze.py entrepreneur --viral    # Viral potential analysis
-python analyze.py --hashtag startup       # Analyze #startup hashtag
+# Handles both data ingestion and analysis automatically
+python analyze.py calebinvest              # Full analytical analysis
+python analyze.py calebinvest --quick      # Quick growth analysis  
+python analyze.py calebinvest --viral      # Viral potential analysis
+python analyze.py --hashtag startup        # Hashtag momentum analysis
 ```
 
-## 🛠 Features
+### **Method 2: Separated Pipeline (Manual Control)**
+```bash
+# PHASE 1: Data ingestion only (scraping + OCR + storage)
+python demo_separated_pipeline.py ingest calebinvest
 
-- **🔍 Real TikTok Data**: Uses Apify scrapers to get actual video metrics
-- **📱 Thumbnail OCR**: Extracts text from video thumbnails using Tesseract
-- **📊 Growth Analysis**: Calculates engagement and growth rates
-- **🎯 Content Themes**: Identifies trending topics and hashtags
-- **⏰ Recent Performance**: Focuses on last 48 hours for trending content
-- **💡 Strategic Insights**: Provides actionable content recommendations
+# PHASE 2: Analysis only (from stored data)
+python demo_separated_pipeline.py analyze calebinvest
 
-## 📋 Prerequisites
+# Check database status
+python demo_separated_pipeline.py status
+```
+
+### **Method 3: Advanced Analytics**
+```bash
+# Creator growth trend analysis with statistical insights
+python analytical_demo.py creator_growth calebinvest
+
+# Hashtag momentum and competitive analysis
+python analytical_demo.py hashtag_trends startup,entrepreneur,business
+
+# Transcript pattern analysis (frequent phrases, hooks, timing)
+python analytical_demo.py transcript_analysis calebinvest
+
+# Viral content correlation analysis
+python analytical_demo.py viral_patterns
+```
+
+## 🧠 **Advanced LLM Analytics**
+
+### **1. Creator Growth Trend Analysis**
+- Statistical growth patterns with velocity and acceleration
+- Inflection point detection for viral breakthroughs  
+- Predictive modeling for next viral windows
+- Consistency scoring and sustainability assessment
+
+### **2. Hashtag Momentum Analysis**
+- Cross-hashtag competition analysis
+- Momentum acceleration/deceleration tracking
+- Optimal timing window detection
+- Market share shift analysis
+
+### **3. Transcript Pattern Analysis**
+- **Most frequent phrases** across all transcripts with usage counts
+- **Timeframe effectiveness** analysis (when phrases work best)
+- Opening hook optimization with performance correlation
+- CTA placement analysis and timing insights
+
+### **4. Viral Pattern Correlation**
+- Statistical correlation between content features and virality
+- Cross-creator universal viral patterns
+- Predictive viral indicators and early warning systems
+- Content optimization recommendations
+
+## 📊 **Database Schema**
+
+**File:** `zoro_analysis.db` (SQLite)
+
+```sql
+-- Raw video data with processing status
+CREATE TABLE videos (
+    video_id TEXT PRIMARY KEY,
+    author TEXT,
+    description TEXT,
+    transcript TEXT,
+    hashtags TEXT,  -- JSON array
+    views INTEGER,
+    likes INTEGER,
+    comments INTEGER,
+    shares INTEGER,
+    thumbnail_url TEXT,
+    created_at TIMESTAMP,
+    scraped_at TIMESTAMP,
+    ocr_processed BOOLEAN DEFAULT FALSE,
+    transcript_processed BOOLEAN DEFAULT FALSE,
+    llm_analyzed BOOLEAN DEFAULT FALSE
+);
+
+-- OCR results from thumbnails
+CREATE TABLE ocr_results (
+    video_id TEXT,
+    ocr_text TEXT,
+    confidence_score REAL,
+    extracted_at TIMESTAMP
+);
+
+-- Transcript analysis results
+CREATE TABLE transcript_results (
+    video_id TEXT,
+    transcript_text TEXT,
+    transcript_method TEXT,  -- 'captions', 'whisper', 'fallback'
+    word_count INTEGER,
+    duration_seconds INTEGER
+);
+
+-- LLM analysis results
+CREATE TABLE llm_analysis (
+    creator_username TEXT,
+    analysis_type TEXT,  -- 'full', 'quick', 'viral', 'trends'
+    insights TEXT,       -- JSON insights
+    analyzed_at TIMESTAMP
+);
+
+-- Growth tracking for trend analysis
+CREATE TABLE growth_snapshots (
+    entity_type TEXT,    -- 'creator', 'hashtag', 'video'
+    entity_id TEXT,
+    measurement_time TIMESTAMP,
+    growth_rate_24h REAL,
+    momentum_score REAL
+);
+```
+
+## 🎬 **Example Output**
+
+### **Transcript Pattern Analysis:**
+```
+📊 TRANSCRIPT STATISTICS:
+   📝 Total words: 12,450
+   📚 Vocabulary size: 2,340
+   📹 Avg words per video: 87
+
+🔤 MOST FREQUENT PHRASES:
+   1. "so here's the thing" (23 times, avg 145K views)
+   2. "nobody talks about this" (18 times, avg 198K views)
+   3. "this is crazy but" (15 times, avg 234K views)
+
+🎣 TOP PERFORMING HOOKS:
+   1. "so i just made ten thousand..." (456K views, 0-5 seconds)
+   2. "nobody is talking about this..." (345K views, 0-3 seconds)
+
+🧠 ANALYTICAL INSIGHTS:
+- Most effective opening: "So I just made $X..." (avg 234K views)
+- Hook-to-payoff timing: 8.3 seconds average for viral content
+- Power phrases increasing shares by 45%: "I can't believe this worked"
+- Optimal script structure: Hook (0-5s) → Proof (6-15s) → Method (16-35s) → CTA (36-45s)
+```
+
+### **Creator Growth Analysis:**
+```
+📊 STATISTICAL SUMMARY:
+   📈 Videos analyzed: 87
+   📅 Time period: 45 days
+   👁️ Average views: 145,600
+   📈 Growth rate: 23.4% per week
+   🎯 Consistency score: 7.8/10
+   🔥 Peak period: 2024-01-15
+
+🧠 ANALYTICAL INSIGHTS:
+GROWTH TRAJECTORY ANALYSIS:
+- Growth velocity: 15.2% weekly acceleration 
+- Inflection point detected at day 23 (viral breakthrough)
+- Seasonal pattern: 34% higher engagement on Tuesdays
+
+PREDICTIVE INSIGHTS:
+- Next viral window prediction: Day 7-12 (78% confidence)
+- Growth acceleration trigger: Educational + income proof content
+```
+
+## 📋 **Prerequisites**
 
 1. **Tesseract OCR** (for thumbnail text extraction)
    ```bash
@@ -47,60 +199,41 @@ python analyze.py --hashtag startup       # Analyze #startup hashtag
    pip install -r requirements.txt
    ```
 
-## 🎬 What You Get
+3. **Environment Variables**
+   ```bash
+   export APIFY_API_TOKEN="your_apify_token"
+   export ANTHROPIC_API_KEY="your_claude_key"
+   ```
 
-### Full Account Analysis
-- Profile summary and metrics
-- Top 5 most recent videos with thumbnail text
-- Content theme analysis
-- Performance insights and recommendations
-- Best performing and most engaging videos
+## 🗄️ **Core System Files**
 
-### Quick Growth Analysis
-- Top 5 videos by growth rate
-- Videos from last 48 hours
-- Growth rate calculations
-- Summary statistics
+- **`analyze.py`** - Main unified analyzer with database-first architecture
+- **`analytical_engine.py`** - Advanced LLM analytics engine  
+- **`analytical_demo.py`** - Demo script for analytical capabilities
+- **`demo_separated_pipeline.py`** - Demonstrates separated ingestion/analysis phases
+- **`main.py`** - Alternative pipeline entry point
+- **`orchestrator.py`** - Multi-agent system orchestration
+- **`transcript_downloader.py`** - Video transcript processing
+- **`zoro_analysis.db`** - SQLite database storing all data
 
-## 🧠 How It Works
+## 📚 **Documentation**
 
-1. **Scrapes TikTok Profile** → Gets real video data via Apify
-2. **Downloads Thumbnails** → Processes images in memory (no files saved)
-3. **OCR Text Extraction** → Reads text overlays on thumbnails
-4. **Analysis Engine** → Calculates engagement, growth rates, themes
-5. **Terminal Output** → Shows results directly (no extra files created)
+- **`PIPELINE_ARCHITECTURE.md`** - Complete pipeline architecture guide
+- **`ANALYTICAL_CAPABILITIES.md`** - Advanced analytics documentation  
+- **`QUICK_START.md`** - Quick start guide
 
-## 📊 Example Output
+## 🌟 **Key Features**
 
-```
-🎯 ANALYZING @CALEBINVEST TIKTOK ACCOUNT
-============================================================
-📊 Average Engagement Rate: 21.30%
-🔥 Best Performing Video: 764,100 views
-💬 Most Engaging: 25.57% engagement rate
-📱 Thumbnail Text: "we got this bro, we will get that car..."
-```
-
-## 🔧 Advanced Usage
-
-### Multi-Agent System (Full Pipeline)
-```bash
-python run_system.py
-```
-
-### Legacy Analysis Tools
-- `orchestrator.py` - Multi-agent orchestration
-- `startup_hashtag_intelligence.py` - Hashtag analysis
-- `viral_intelligence_formulas.py` - Virality calculations
-
-## 🌟 Recent Updates
-
-- ✅ **No File Clutter**: All analysis happens in memory
-- ✅ **Terminal-Only Output**: Results display directly in terminal
-- ✅ **Streamlined Workflow**: Single command for complete analysis
-- ✅ **Real Thumbnail Text**: OCR extraction from actual images
-- ✅ **Growth Rate Focus**: Emphasis on trending content
+✅ **Database-First Architecture** - All data persisted, no temporary files  
+✅ **Advanced LLM Analytics** - Statistical insights, not just content review  
+✅ **Transcript Deep Analysis** - Frequent phrases, hooks, timing analysis  
+✅ **Growth Trend Detection** - Velocity, acceleration, inflection points  
+✅ **Viral Pattern Recognition** - Cross-creator correlation analysis  
+✅ **Predictive Modeling** - Next viral window predictions with confidence intervals  
+✅ **Real TikTok Data** - Apify scrapers for authentic metrics  
+✅ **OCR Enhancement** - Thumbnail text extraction and analysis  
+✅ **Multi-Analysis Types** - Full, quick, viral, trends, hashtag analysis  
 
 ---
 
-**Perfect for**: Content creators, marketers, trend analysts, and anyone studying TikTok performance patterns!
+**Perfect for**: Content creators, marketers, trend analysts, and researchers studying TikTok performance patterns with advanced statistical insights!

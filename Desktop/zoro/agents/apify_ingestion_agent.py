@@ -90,17 +90,33 @@ class ApifyTikTokIngestion:
             if results:
                 profile = results[0]
                 
+                # Helper function to safely convert to int
+                def safe_int(value, default=0):
+                    try:
+                        return int(value) if value is not None else default
+                    except (ValueError, TypeError):
+                        return default
+                
+                # Helper function to safely convert to bool
+                def safe_bool(value, default=False):
+                    try:
+                        if isinstance(value, bool):
+                            return value
+                        return bool(value) if value is not None else default
+                    except (ValueError, TypeError):
+                        return default
+                
                 creator_data = TikTokCreatorData(
-                    username=profile.get("uniqueId", username),
-                    display_name=profile.get("nickname", ""),
-                    followers=profile.get("followerCount", 0),
-                    following=profile.get("followingCount", 0), 
-                    likes=profile.get("heartCount", 0),
-                    videos=profile.get("videoCount", 0),
-                    verified=profile.get("verified", False),
-                    bio=profile.get("signature", ""),
-                    avatar_url=profile.get("avatarLarger", ""),
-                    is_private=profile.get("privateAccount", False)
+                    username=str(profile.get("uniqueId", username)),
+                    display_name=str(profile.get("nickname", "")),
+                    followers=safe_int(profile.get("followerCount")),
+                    following=safe_int(profile.get("followingCount")), 
+                    likes=safe_int(profile.get("heartCount")),
+                    videos=safe_int(profile.get("videoCount")),
+                    verified=safe_bool(profile.get("verified")),
+                    bio=str(profile.get("signature", "")),
+                    avatar_url=str(profile.get("avatarLarger", "")),
+                    is_private=safe_bool(profile.get("privateAccount"))
                 )
                 
                 print(f"✅ SUCCESS: Got REAL data for @{username}!")
@@ -150,19 +166,36 @@ class ApifyTikTokIngestion:
                     if word.startswith("#"):
                         hashtags.append(word[1:])  # Remove #
                 
+                # Helper function to safely convert to int
+                def safe_int(value, default=0):
+                    try:
+                        return int(value) if value is not None else default
+                    except (ValueError, TypeError):
+                        return default
+                
+                # Helper function to safely convert timestamp
+                def safe_timestamp(value):
+                    try:
+                        if value:
+                            return datetime.fromtimestamp(int(value))
+                        else:
+                            return datetime.now()
+                    except (ValueError, TypeError):
+                        return datetime.now()
+                
                 video_data = TikTokVideoData(
-                    video_id=item.get("id", ""),
-                    creator_username=item.get("authorMeta", {}).get("name", ""),
+                    video_id=str(item.get("id", "")),
+                    creator_username=str(item.get("authorMeta", {}).get("name", "")),
                     description=desc,
-                    views=item.get("playCount", 0),
-                    likes=item.get("diggCount", 0),
-                    comments=item.get("commentCount", 0),
-                    shares=item.get("shareCount", 0),
-                    created_at=datetime.fromtimestamp(item.get("createTimeISO", 0)) if item.get("createTimeISO") else datetime.now(),
-                    video_url=item.get("webVideoUrl", ""),
+                    views=safe_int(item.get("playCount")),
+                    likes=safe_int(item.get("diggCount")),
+                    comments=safe_int(item.get("commentCount")),
+                    shares=safe_int(item.get("shareCount")),
+                    created_at=safe_timestamp(item.get("createTimeISO")),
+                    video_url=str(item.get("webVideoUrl", "")),
                     hashtags=hashtags,
-                    music_title=item.get("musicMeta", {}).get("musicName", ""),
-                    duration=item.get("videoMeta", {}).get("duration", 0)
+                    music_title=str(item.get("musicMeta", {}).get("musicName", "")),
+                    duration=safe_int(item.get("videoMeta", {}).get("duration"))
                 )
                 videos.append(video_data)
             

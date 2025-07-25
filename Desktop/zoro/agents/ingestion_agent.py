@@ -59,6 +59,7 @@ class TikTokVideoData:
     hashtags: List[str]
     music_title: str
     duration: int
+    thumbnail_url: str = ""  # Added for OCR processing
 
 @dataclass
 class StartupVideoData:
@@ -242,6 +243,15 @@ class ApifyContentIngestion:
                     if word.startswith("#"):
                         hashtags.append(word[1:])  # Remove #
                 
+                # Extract thumbnail URL
+                video_meta = item.get("videoMeta", {})
+                thumbnail_url = (
+                    video_meta.get("covers", [""])[0] if video_meta.get("covers") else
+                    video_meta.get("coverUrl", "") or
+                    item.get("thumbnail_url", "") or
+                    item.get("covers", {}).get("default", "")
+                )
+                
                 video_data = TikTokVideoData(
                     video_id=item.get("id", ""),
                     creator_username=item.get("authorMeta", {}).get("name", ""),
@@ -254,7 +264,8 @@ class ApifyContentIngestion:
                     video_url=item.get("webVideoUrl", ""),
                     hashtags=hashtags,
                     music_title=item.get("musicMeta", {}).get("musicName", ""),
-                    duration=self._safe_int(item.get("videoMeta", {}).get("duration", 0))
+                    duration=self._safe_int(item.get("videoMeta", {}).get("duration", 0)),
+                    thumbnail_url=thumbnail_url
                 )
                 videos.append(video_data)
             
@@ -265,6 +276,70 @@ class ApifyContentIngestion:
             
         except Exception as e:
             self.logger.error("Error fetching hashtag videos", hashtag=hashtag, error=str(e))
+            return []
+    
+    async def get_creator_videos(self, username: str, max_videos: int = 20) -> List[TikTokVideoData]:
+        """Get real videos directly from a creator's profile using Apify Profile Scraper"""
+        try:
+            self.logger.info("Fetching creator videos", username=username, max_videos=max_videos)
+            
+            run_input = {
+                "profiles": [f"https://www.tiktok.com/@{username}"],
+                "resultsType": "posts",
+                "count": max_videos
+            }
+            
+            # Run the profile scraper actor
+            run = self.client.actor(self.actors["profile_scraper"]).call(
+                run_input=run_input,
+                timeout_secs=600
+            )
+            
+            # Get the results
+            videos = []
+            for item in self.client.dataset(run["defaultDatasetId"]).iterate_items():
+                
+                # Extract hashtags from description
+                desc = item.get("text", "")
+                hashtags = []
+                words = desc.split()
+                for word in words:
+                    if word.startswith("#"):
+                        hashtags.append(word[1:])  # Remove #
+                
+                # Extract thumbnail URL from videoMeta
+                video_meta = item.get("videoMeta", {})
+                thumbnail_url = (
+                    video_meta.get("coverUrl", "") or
+                    video_meta.get("originalCoverUrl", "") or
+                    ""
+                )
+                
+                # Create video data object
+                video_data = TikTokVideoData(
+                    video_id=item.get("id", ""),
+                    creator_username=item.get("authorMeta", {}).get("name", username),
+                    description=desc,
+                    views=self._safe_int(item.get("playCount", 0)),
+                    likes=self._safe_int(item.get("diggCount", 0)),
+                    comments=self._safe_int(item.get("commentCount", 0)),
+                    shares=self._safe_int(item.get("shareCount", 0)),
+                    created_at=datetime.fromtimestamp(item.get("createTime", 0)) if item.get("createTime") else datetime.now(),
+                    video_url=item.get("webVideoUrl", ""),
+                    hashtags=hashtags,
+                    music_title=item.get("musicMeta", {}).get("musicName", ""),
+                    duration=self._safe_int(video_meta.get("duration", 0)),
+                    thumbnail_url=thumbnail_url
+                )
+                videos.append(video_data)
+            
+            self.logger.info("Successfully fetched creator videos", 
+                           username=username, 
+                           videos_found=len(videos))
+            return videos
+            
+        except Exception as e:
+            self.logger.error("Error fetching creator videos", username=username, error=str(e))
             return []
 
     async def collect_startup_hashtag_data(self, hashtag: str, max_videos: int = 50) -> Dict[str, Any]:
