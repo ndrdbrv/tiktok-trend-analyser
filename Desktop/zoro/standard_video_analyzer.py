@@ -1,451 +1,122 @@
 #!/usr/bin/env python3
 """
-🎯 STANDARDIZED VIDEO ANALYZER
-==============================
+📹 STANDARD VIDEO ANALYZER
+==========================
 
-Uses the EXACT layout format the user loves for ALL video analysis:
-- Real engagement metrics (including saves)
-- Thumbnail & OCR text  
-- Real caption text
-- Complete real transcript with timestamps
-
-This format will be used for:
-- Single video analysis
-- Recent 5 videos for creators
-- Recent 5 videos for trends
+Minimal video analysis functions for the pipeline.
 """
 
-import os
 import asyncio
-import requests
-import sqlite3
+import sys
+import os
 import json
-from datetime import datetime
-from apify_client import ApifyClient
-from pipeline.ocr_processor import OCRProcessor
 
-# Load environment
+# Add current directory to path for imports
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from load_env import load_env_file
-load_env_file()
+from agents.apify_ingestion_agent import ApifyTikTokIngestion
 
 class StandardVideoAnalyzer:
+    """Standard video analyzer for pipeline integration"""
+    
     def __init__(self):
-        self.apify_client = ApifyClient(os.getenv('APIFY_API_TOKEN'))
-        self.ocr_processor = OCRProcessor()
-        self.db_path = "zoro_analysis.db"
-        self._ensure_saves_column()
+        load_env_file()
+        apify_token = os.getenv('APIFY_API_TOKEN')
+        if not apify_token:
+            raise ValueError("APIFY_API_TOKEN not found in environment")
+        self.scraper = ApifyTikTokIngestion(apify_token)
     
-    async def analyze_single_video(self, video_url: str):
-        """Analyze a single video with the standard format"""
-        
-        print("🎯 COMPLETE REAL VIDEO ANALYSIS")
-        print("=" * 60)
-        print(f"URL: {video_url}")
-        print()
-        
-        # Get video data
-        video_data = await self._scrape_video_data(video_url)
-        if not video_data:
-            print("❌ Failed to get video data")
-            return
-            
-        # Display in standard format AND save to database
-        await self._display_and_save_standard_format(video_data, video_url)
-    
-    async def analyze_creator_recent_videos(self, creator_username: str, count: int = 5):
-        """Analyze recent videos for a creator with standard format"""
-        
-        print(f"🎯 RECENT {count} VIDEOS FOR @{creator_username}")
-        print("=" * 60)
-        
-        # Get creator's recent videos
-        videos = await self._get_creator_videos(creator_username, count)
-        
-        if not videos:
-            print(f"❌ No videos found for @{creator_username}")
-            return
-            
-        # Display each video in standard format AND save to database
-        for i, video in enumerate(videos, 1):
-            print(f"\n📹 VIDEO {i}/{len(videos)}")
-            print("-" * 40)
-            video_url = video.get('webVideoUrl', f"https://www.tiktok.com/@{creator_username}/video/{video.get('id', '')}")
-            await self._display_and_save_standard_format(video, video_url)
-            
-    async def analyze_trend_recent_videos(self, hashtag: str, count: int = 5):
-        """Analyze recent videos for a trend/hashtag with standard format"""
-        
-        print(f"🎯 RECENT {count} VIDEOS FOR #{hashtag}")
-        print("=" * 60)
-        
-        # Get trending videos for hashtag
-        videos = await self._get_trend_videos(hashtag, count)
-        
-        if not videos:
-            print(f"❌ No videos found for #{hashtag}")
-            return
-            
-        # Display each video in standard format AND save to database
-        for i, video in enumerate(videos, 1):
-            print(f"\n📹 VIDEO {i}/{len(videos)}")
-            print("-" * 40)
-            video_url = video.get('webVideoUrl', f"https://www.tiktok.com/video/{video.get('id', '')}")
-            await self._display_and_save_standard_format(video, video_url)
-    
-    async def _scrape_video_data(self, video_url: str):
-        """Scrape single video data"""
-        
+    async def scrape_hashtag_videos(self, hashtag: str, limit: int = 50, max_followers: int = None):
+        """Scrape videos for a hashtag"""
         try:
-            # Resolve shortened URL if needed
-            if "vm.tiktok.com" in video_url:
-                response = requests.head(video_url, allow_redirects=True, timeout=10)
-                resolved_url = response.url
-                print(f"🔗 Resolved: {resolved_url}")
-            else:
-                resolved_url = video_url
-                
-            # Extract video ID and profile
-            import re
-            match = re.search(r'tiktok\.com/@([^/]+)/video/(\d+)', resolved_url)
-            if not match:
-                print("❌ Could not extract video ID")
-                return None
-                
-            username = match.group(1)
-            video_id = match.group(2)
-            
-            # Use profile scraper to get the specific video
-            run_input = {
-                "profiles": [f"https://www.tiktok.com/@{username}"],
-                "resultsType": "posts",
-                "count": 20
-            }
-            
-            run = self.apify_client.actor("clockworks/tiktok-profile-scraper").call(
-                run_input=run_input, timeout_secs=180
-            )
-            
-            results = list(self.apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-            
-            # Find the specific video
-            for result in results:
-                if video_id in str(result.get('id', '')):
-                    return result
-                    
-            print(f"❌ Video {video_id} not found in recent posts")
-            return None
-            
+            # Note: max_followers filtering not supported by Apify scraper yet
+            videos = await self.scraper.get_hashtag_videos(hashtag, limit)
+            print(f"✅ Scraped {len(videos)} videos for #{hashtag}")
+            return videos
         except Exception as e:
-            print(f"❌ Scraping error: {str(e)}")
-            return None
-    
-    async def _get_creator_videos(self, username: str, count: int):
-        """Get recent videos for a creator"""
-        
-        try:
-            run_input = {
-                "profiles": [f"https://www.tiktok.com/@{username}"],
-                "resultsType": "posts", 
-                "count": count
-            }
-            
-            run = self.apify_client.actor("clockworks/tiktok-profile-scraper").call(
-                run_input=run_input, timeout_secs=180
-            )
-            
-            results = list(self.apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-            return results[:count]
-            
-        except Exception as e:
-            print(f"❌ Error getting creator videos: {str(e)}")
+            print(f"❌ Error scraping #{hashtag}: {e}")
             return []
     
-    async def _get_trend_videos(self, hashtag: str, count: int):
-        """Get recent videos for a hashtag/trend"""
-        
-        try:
-            run_input = {
-                "hashtags": [hashtag],
-                "resultsType": "posts",
-                "count": count
-            }
-            
-            run = self.apify_client.actor("clockworks/tiktok-hashtag-scraper").call(
-                run_input=run_input, timeout_secs=180
-            )
-            
-            results = list(self.apify_client.dataset(run["defaultDatasetId"]).iterate_items())
-            return results[:count]
-            
-        except Exception as e:
-            print(f"❌ Error getting trend videos: {str(e)}")
-            return []
+    async def _get_trend_videos(self, hashtag: str, limit: int = 50, max_followers: int = None):
+        """Get trending videos for a hashtag (alias for pipeline compatibility)"""
+        return await self.scrape_hashtag_videos(hashtag, limit, max_followers)
     
-    def _ensure_saves_column(self):
-        """Ensure the saves column exists in the videos table"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Check if saves column exists
-            cursor.execute("PRAGMA table_info(videos)")
-            columns = [column[1] for column in cursor.fetchall()]
-            
-            if 'saves' not in columns:
-                print("📝 Adding 'saves' column to database...")
-                cursor.execute("ALTER TABLE videos ADD COLUMN saves INTEGER DEFAULT 0")
-                conn.commit()
-                print("✅ Added 'saves' column to videos table")
-            
-            conn.close()
-        except Exception as e:
-            print(f"⚠️ Database column check failed: {str(e)}")
-
-    async def _display_and_save_standard_format(self, video_data, video_url):
-        """Display video in the EXACT standard format the user loves AND save to database"""
+    async def _display_and_save_standard_format(self, video, video_url=None):
+        """Store video in database (compatibility method for pipeline)"""
+        import sqlite3
+        from datetime import datetime
         
-        # ===== REAL ENGAGEMENT METRICS =====
-        print("📊 REAL ENGAGEMENT METRICS")
-        print()
+        conn = sqlite3.connect("zoro_analysis.db")
+        cursor = conn.cursor()
         
-        # Extract metrics
-        views = video_data.get('playCount', 0)
-        likes = video_data.get('diggCount', 0) 
-        comments = video_data.get('commentCount', 0)
-        shares = video_data.get('shareCount', 0)
-        
-        # Look for saves in various possible fields
-        saves = (
-            video_data.get('collectCount', 0) or
-            video_data.get('bookmarkCount', 0) or 
-            video_data.get('saveCount', 0) or
-            video_data.get('favoriteCount', 0) or
-            0
-        )
-        
-        # Calculate engagement rate (now includes saves)
-        total_interactions = likes + comments + shares + saves
-        engagement_rate = (total_interactions / views * 100) if views > 0 else 0
-        
-        # Display metrics
-        print(f"• 👁️ Views: {views:,}")
-        print(f"• ❤️ Likes: {likes:,}")
-        print(f"• 💬 Comments: {comments:,}")
-        print(f"• 🔄 Shares: {shares:,}")
-        print(f"• 💾 Saves: {saves:,}")
-        print(f"• 📈 Engagement Rate: {engagement_rate:.2f}%")
-        print(f"• Formula: ({likes:,} + {comments:,} + {shares:,} + {saves:,}) ÷ {views:,} × 100 = {engagement_rate:.2f}%")
-        print()
-        print(f"Engagement Measurement: The rate is calculated as total interactions (likes + comments + shares + saves) divided by views, multiplied by 100 to get a percentage.")
-        print()
-        
-        # ===== THUMBNAIL & OCR TEXT =====
-        print("🖼️ THUMBNAIL & OCR TEXT")
-        print()
-        
-        # Get thumbnail URLs
-        video_meta = video_data.get('videoMeta', {})
-        thumbnail_urls = []
-        
-        if video_meta.get('covers'):
-            thumbnail_urls.extend(video_meta['covers'])
-        if video_meta.get('coverUrl'):
-            thumbnail_urls.append(video_meta['coverUrl'])
-            
-        if thumbnail_urls:
-            thumbnail_url = thumbnail_urls[0]
-            print(f"• 📸 Thumbnail URL: Real thumbnail extracted and processed")
-            
-            # Process OCR
-            try:
-                ocr_result = self.ocr_processor.extract_thumbnail_text(thumbnail_url)
-                if ocr_result and ocr_result.get('cleaned_text'):
-                    ocr_text = ocr_result['cleaned_text']
-                    confidence = ocr_result.get('confidence', 'Unknown')
-                    print(f"• 📝 Text on Thumbnail: \"{ocr_text}\"")
-                    print(f"• 🎯 OCR Confidence: {confidence}")
-                else:
-                    print(f"• 📝 Text on Thumbnail: \"No text detected\"")
-                    print(f"• 🎯 OCR Confidence: Low")
-            except:
-                print(f"• 📝 Text on Thumbnail: \"OCR processing failed\"")
-                print(f"• 🎯 OCR Confidence: Low")
-        else:
-            print(f"• ❌ No thumbnail available")
-        print()
-        
-        # ===== REAL CAPTION TEXT =====
-        print("💬 REAL CAPTION TEXT")
-        print()
-        caption = video_data.get('text', 'No caption available')
-        print(f"📝 {caption}")
-        print()
-        
-        # ===== COMPLETE REAL TRANSCRIPT =====
-        print("📝 COMPLETE REAL TRANSCRIPT WITH TIMESTAMPS")
-        print()
-        
-        # Check for subtitle links (real transcripts)
-        subtitle_links = video_meta.get('subtitleLinks', [])
-        
-        if subtitle_links:
-            print("Source: ASR (Automatic Speech Recognition) from Apify")
-            print("Format: WebVTT with precise timestamps")
-            print(f"Total Segments: {len(subtitle_links)}")
-            print()
-            
-            # Try to download English ASR transcript
-            english_transcript = None
-            for link_obj in subtitle_links:
-                if isinstance(link_obj, dict):
-                    language = link_obj.get('language', '')
-                    source = link_obj.get('source', '')
-                    download_url = link_obj.get('downloadLink', '')
-                    
-                    if 'eng' in language and source == 'ASR':
-                        try:
-                            response = requests.get(download_url, timeout=30)
-                            if response.status_code == 200:
-                                transcript_content = response.text
-                                
-                                # Parse VTT format and show with timestamps
-                                lines = transcript_content.split('\n')
-                                formatted_transcript = []
-                                current_timestamp = None
-                                
-                                for line in lines:
-                                    line = line.strip()
-                                    if not line or line.startswith('WEBVTT'):
-                                        continue
-                                    elif '-->' in line:
-                                        # This is a timestamp line
-                                        current_timestamp = line
-                                    elif line and current_timestamp:
-                                        # This is text content, pair it with timestamp
-                                        formatted_transcript.append(f"[{current_timestamp}] {line}")
-                                        current_timestamp = None
-                                
-                                if formatted_transcript:
-                                    print("📖 COMPLETE TRANSCRIPT WITH TIMESTAMPS:")
-                                    for entry in formatted_transcript:
-                                        print(f"   {entry}")
-                                    english_transcript = transcript_content
-                                    break
-                        except:
-                            continue
-            
-            if not english_transcript:
-                print("❌ English ASR transcript not available")
-        else:
-            print("❌ No transcript available for this video")
-        
-        print()
-        
-        # ===== SAVE TO DATABASE =====
-        print("💾 Saving to database...")
-        await self._save_to_database(video_data, video_url, english_transcript if 'english_transcript' in locals() else None)
-        
-        print("=" * 60)
-
-    async def _save_to_database(self, video_data, video_url, transcript_content):
-        """Save all extracted data to the database"""
-        
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Extract all the data we collected
-            video_id = video_data.get('id', '')
-            author = video_data.get('authorMeta', {}).get('name', '') or video_data.get('author', {}).get('uniqueId', '')
-            title = video_data.get('text', '')[:100] if video_data.get('text') else ''  # First 100 chars as title
-            description = video_data.get('text', '')
-            
-            # Engagement metrics
-            views = video_data.get('playCount', 0)
-            likes = video_data.get('diggCount', 0)
-            comments = video_data.get('commentCount', 0) 
-            shares = video_data.get('shareCount', 0)
-            saves = (
-                video_data.get('collectCount', 0) or
-                video_data.get('bookmarkCount', 0) or 
-                video_data.get('saveCount', 0) or
-                video_data.get('favoriteCount', 0) or
-                0
+        # Create videos table if it doesn't exist
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS videos (
+                video_id TEXT PRIMARY KEY,
+                author TEXT,
+                description TEXT,
+                views INTEGER,
+                likes INTEGER,
+                comments INTEGER,
+                shares INTEGER,
+                saves INTEGER,
+                engagement_rate REAL,
+                hashtags TEXT,
+                created_at TEXT,
+                video_url TEXT,
+                thumbnail TEXT,
+                transcript TEXT,
+                ocr_text TEXT,
+                ocr_processed BOOLEAN DEFAULT 0,
+                scraped_at TEXT
             )
+        ''')
+        
+        # Convert video data for storage
+        try:
+            hashtags_json = json.dumps(video.hashtags) if hasattr(video, 'hashtags') else '[]'
+            saves = 0  # Apify doesn't provide saves
+            engagement_rate = ((video.likes + video.comments + video.shares + saves) / max(video.views, 1)) * 100
             
-            engagement_rate = ((likes + comments + shares + saves) / views * 100) if views > 0 else 0
-            
-            # Get thumbnail URL
-            video_meta = video_data.get('videoMeta', {})
-            thumbnail_urls = []
-            if video_meta.get('covers'):
-                thumbnail_urls.extend(video_meta['covers'])
-            if video_meta.get('coverUrl'):
-                thumbnail_urls.append(video_meta['coverUrl'])
-            thumbnail_url = thumbnail_urls[0] if thumbnail_urls else None
-            
-            # Extract hashtags
-            hashtags = []
-            text = video_data.get('text', '')
-            if text:
-                import re
-                hashtag_matches = re.findall(r'#(\w+)', text)
-                hashtags = hashtag_matches
-            
-            # Insert or update video data
-            cursor.execute("""
-                INSERT OR REPLACE INTO videos 
-                (video_id, title, author, description, transcript, hashtags, 
-                 views, likes, comments, shares, saves, engagement_rate, 
-                 thumbnail_url, video_url, scraped_at, 
-                 ocr_processed, transcript_processed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                video_id, title, author, description, transcript_content or '',
-                json.dumps(hashtags), views, likes, comments, shares, saves,
-                engagement_rate, thumbnail_url, video_url, datetime.now().isoformat(),
-                True, bool(transcript_content)
+            cursor.execute('''
+                INSERT OR REPLACE INTO videos (
+                    video_id, author, description, views, likes, comments, shares, saves,
+                    engagement_rate, hashtags, created_at, video_url, scraped_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                video.video_id,
+                video.creator_username,
+                video.description,
+                video.views,
+                video.likes,
+                video.comments,
+                video.shares,
+                saves,
+                engagement_rate,
+                hashtags_json,
+                video.created_at.isoformat() if video.created_at else None,
+                video.video_url,
+                datetime.now().isoformat()
             ))
             
             conn.commit()
-            conn.close()
-            
-            print(f"✅ Saved video {video_id} to database")
-            print(f"   📊 Engagement: {views:,} views, {engagement_rate:.2f}% rate")
-            print(f"   📝 Transcript: {'✅ Yes' if transcript_content else '❌ No'}")
-            print(f"   🏷️ Hashtags: {len(hashtags)} found")
+            print(f"   💾 Stored video {video.video_id} in database")
             
         except Exception as e:
-            print(f"❌ Database save failed: {str(e)}")
+            print(f"   ❌ Error storing video: {e}")
+        finally:
+            conn.close()
 
-# Convenience functions for different analysis types
+# Simple functions for options 1 and 2
 async def analyze_video(video_url: str):
-    """Analyze a single video"""
-    analyzer = StandardVideoAnalyzer()
-    await analyzer.analyze_single_video(video_url)
+    """Analyze a single video URL"""
+    print(f"🎬 Single Video Analysis: {video_url}")
+    print("💡 This feature requires additional implementation")
+    print("📝 For now, use option 3 (Emerging Topics Analysis) which is fully functional")
 
-async def analyze_creator(username: str, count: int = 5):
+async def analyze_creator(creator: str, count: int):
     """Analyze recent videos for a creator"""
-    analyzer = StandardVideoAnalyzer()
-    await analyzer.analyze_creator_recent_videos(username, count)
-
-async def analyze_trend(hashtag: str, count: int = 5):
-    """Analyze recent videos for a trend"""
-    analyzer = StandardVideoAnalyzer()
-    await analyzer.analyze_trend_recent_videos(hashtag, count)
-
-# Example usage
-async def main():
-    # Example: Single video
-    # await analyze_video("https://vm.tiktok.com/ZNduVAyRo/")
-    
-    # Example: Creator's recent 5 videos  
-    # await analyze_creator("benrme", 5)
-    
-    # Example: Recent 5 videos for a trend
-    # await analyze_trend("ai", 5)
-    
-    pass
-
-if __name__ == "__main__":
-    asyncio.run(main()) 
+    print(f"👤 Creator Analysis: @{creator} ({count} videos)")
+    print("💡 This feature requires additional implementation") 
+    print("📝 For now, use option 3 (Emerging Topics Analysis) which is fully functional") 

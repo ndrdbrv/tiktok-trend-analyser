@@ -17,12 +17,8 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Load environment variables
-try:
-    from load_env import load_env_file
-    load_env_file()
-except:
-    pass
+# Environment loaded by calling script
+pass
 
 # Claude integration
 try:
@@ -58,18 +54,31 @@ class ClaudePrimarySystem:
         """Initialize Claude Opus 4 client"""
         api_key = os.getenv('ANTHROPIC_API_KEY')
         
-        if not api_key or not ANTHROPIC_AVAILABLE:
+        if not api_key:
+            print(f"🔍 [LLM] API key found: {bool(api_key)}")
+            print(f"🔍 [LLM] Environment variables available: {list(os.environ.keys())[:3]}...")
             return None
-        
+            
+        if not ANTHROPIC_AVAILABLE:
+            print("⚠️ [LLM] Anthropic library not available")
+            return None
+
         try:
-            return anthropic.Anthropic(api_key=api_key)
+            print(f"🔑 [LLM] Initializing Claude client with key: {api_key[:20]}...")
+            client = anthropic.Anthropic(api_key=api_key)
+            print("✅ [LLM] Claude client initialized successfully")
+            return client
         except Exception as e:
-            print(f"⚠️ Failed to initialize Claude: {str(e)}")
+            print(f"❌ [LLM] Failed to initialize Claude: {str(e)}")
             return None
     
     async def analyze(self, prompt: str, **kwargs) -> Dict[str, Any]:
         """Main analysis method using Claude Opus 4"""
+        print(f"🤖 [LLM] Starting Claude analysis...")
+        print(f"📝 [LLM] Prompt preview: {prompt[:100]}..." if len(prompt) > 100 else f"📝 [LLM] Prompt: {prompt}")
+        
         if not self.claude_available:
+            print("❌ [LLM] Claude Opus 4 not available!")
             return {
                 "success": False,
                 "error": "Claude Opus 4 not available",
@@ -82,6 +91,7 @@ class ClaudePrimarySystem:
         self.session_stats["total_queries"] += 1
         
         try:
+            print("🚀 [LLM] Sending request to Claude Opus 4...")
             # Claude Opus 4 API call
             response = self.claude_client.messages.create(
                 model="claude-opus-4-20250514",
@@ -104,6 +114,10 @@ class ClaudePrimarySystem:
                 / self.session_stats["total_queries"]
             )
             
+            print(f"✅ [LLM] Claude response received in {response_time:.2f}s")
+            print(f"💰 [LLM] Cost: ${cost:.4f} | Tokens: {int(input_tokens + output_tokens)}")
+            print(f"📊 [LLM] Response preview: {response.content[0].text[:150]}..." if len(response.content[0].text) > 150 else f"📊 [LLM] Response: {response.content[0].text}")
+            
             return {
                 "success": True,
                 "response": response.content[0].text,
@@ -115,14 +129,16 @@ class ClaudePrimarySystem:
             }
             
         except Exception as e:
+            response_time = time.time() - start_time
             self.session_stats["failed_queries"] += 1
+            print(f"💥 [LLM] Claude analysis FAILED after {response_time:.2f}s: {str(e)}")
             return {
                 "success": False,
                 "error": str(e),
                 "response": f"Claude analysis failed: {str(e)}",
                 "model": "claude-opus-4-20250514",
                 "cost": 0.0,
-                "response_time": time.time() - start_time
+                "response_time": response_time
             }
     
     def get_system_status(self) -> Dict[str, Any]:
@@ -162,6 +178,7 @@ ai_system = ClaudePrimarySystem()
 # Convenience functions for backward compatibility
 async def analyze_content(prompt: str, **kwargs) -> Dict[str, Any]:
     """Analyze content using Claude Opus 4"""
+    print("📋 [LLM-WRAPPER] analyze_content() called")
     return await ai_system.analyze(prompt, **kwargs)
 
 async def analyze_trends(trends_data: str, **kwargs) -> Dict[str, Any]:

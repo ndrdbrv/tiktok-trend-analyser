@@ -40,11 +40,11 @@ APIFY_ACTORS = {
         use_case="creator_analysis"
     ),
     "hashtag_scraper": ApifyActor(
-        actor_name="TikTok Hashtag Scraper", 
-        actor_id="clockworks/tiktok-hashtag-scraper",
-        description="Scrape videos by hashtags",
-        rating=4.6,
-        users="5.2K",
+        actor_name="TikTok Scraper", 
+        actor_id="clockworks/tiktok-scraper",
+        description="Main TikTok scraper - hashtags, profiles, search",
+        rating=4.8,
+        users="More reliable",
         timeout_seconds=600,
         use_case="hashtag_monitoring"
     ),
@@ -160,11 +160,11 @@ class WorkflowStep:
 INGESTION_WORKFLOW = {
     "startup_hashtag_monitoring": WorkflowStep(
         step_name="Monitor startup hashtags",
-        actor_id="clockworks/tiktok-hashtag-scraper",
+        actor_id="clockworks/tiktok-scraper",
         cadence=IngestionCadence.HIGH_FREQUENCY,
         parameters={
-            "hashtags": ["startup", "entrepreneur", "business"],
-            "resultsPerPage": 50
+            "searchTerms": ["#startup", "#entrepreneur", "#business"],
+            "resultsLimit": 50
         }
     ),
     "creator_profile_analysis": WorkflowStep(

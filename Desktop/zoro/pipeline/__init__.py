@@ -8,14 +8,14 @@ Each component has a single responsibility.
 
 from .scraper import TikTokScraper
 from .ocr_processor import OCRProcessor  
-from .llm_analyzer import LLMAnalyzer
+# LLMAnalyzer imported lazily to avoid early Claude initialization
 from .metrics import MetricsCalculator
 from .storage import DataStorage
 
 __all__ = [
     'TikTokScraper',
     'OCRProcessor', 
-    'LLMAnalyzer',
+    # 'LLMAnalyzer',  # Available via direct import only
     'MetricsCalculator',
     'DataStorage'
 ] 
