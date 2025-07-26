@@ -51,11 +51,12 @@ class TikTokScraper:
         run_input = {
             "hashtags": [hashtag],
             "resultsPerPage": limit,
-            "maxVideos": limit
+            "maxVideos": limit,
+            "sort": "recent"  # 🔥 FIX: Get recent videos, not old viral content
         }
         
         try:
-            run = self.client.actor("clockworks/tiktok-hashtag-scraper").call(
+            run = self.client.actor("clockworks/tiktok-scraper").call(
                 run_input=run_input,
                 timeout_secs=300
             )

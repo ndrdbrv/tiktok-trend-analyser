@@ -111,7 +111,7 @@ class ApifyContentIngestion:
         # Top-rated Apify TikTok actors
         self.actors = {
             "profile_scraper": "clockworks/tiktok-profile-scraper",  # 9.7K users, 4.8★
-            "hashtag_scraper": "clockworks/tiktok-hashtag-scraper",  # 5.2K users, 4.6★
+            "hashtag_scraper": "clockworks/tiktok-scraper",          # Main TikTok scraper - pay per event
             "data_extractor": "clockworks/free-tiktok-scraper",      # 29K users, 4.8★
             "video_scraper": "clockworks/tiktok-video-scraper",      # 3.5K users, 4.8★
         }
@@ -222,7 +222,8 @@ class ApifyContentIngestion:
                 "hashtags": [hashtag],
                 "resultsPerPage": max_videos,
                 "shouldDownloadVideos": False,
-                "shouldDownloadCovers": False
+                "shouldDownloadCovers": False,
+                "sort": "recent"  # 🔥 FIX: Get recent videos, not old viral content
             }
             
             # Run the actor

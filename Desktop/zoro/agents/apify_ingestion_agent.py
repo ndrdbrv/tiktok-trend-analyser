@@ -135,7 +135,7 @@ class ApifyTikTokIngestion:
     
     async def get_hashtag_videos(self, hashtag: str, max_videos: int = 20) -> List[TikTokVideoData]:
         """
-        Get real videos for a hashtag using Apify TikTok Hashtag Scraper
+        Get real videos for a hashtag using the main TikTok Scraper
         """
         try:
             print(f"🏷️ Fetching videos for #{hashtag}...")
@@ -145,7 +145,8 @@ class ApifyTikTokIngestion:
                 "hashtags": [hashtag],
                 "resultsPerPage": max_videos,
                 "shouldDownloadVideos": False,
-                "shouldDownloadCovers": False
+                "shouldDownloadCovers": False,
+                "sort": "recent"  # 🔥 FIX: Get recent videos, not old viral content
             }
             
             # Run the actor
@@ -177,7 +178,14 @@ class ApifyTikTokIngestion:
                 def safe_timestamp(value):
                     try:
                         if value:
-                            return datetime.fromtimestamp(int(value))
+                            # Handle ISO timestamp strings (createTimeISO)
+                            if isinstance(value, str) and 'T' in value:
+                                return datetime.fromisoformat(value.replace('Z', '+00:00'))
+                            # Handle Unix timestamps (createTime)
+                            elif isinstance(value, (int, float)) or (isinstance(value, str) and value.isdigit()):
+                                return datetime.fromtimestamp(int(value))
+                            else:
+                                return datetime.now()
                         else:
                             return datetime.now()
                     except (ValueError, TypeError):
